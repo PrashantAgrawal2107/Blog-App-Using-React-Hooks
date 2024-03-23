@@ -1,4 +1,15 @@
-import { useState , useRef, useEffect} from "react";
+import { useState , useRef, useEffect, useReducer} from "react";
+
+function blogReducer(state , action){
+    switch(action.type){
+        case "ADD" :
+            return [action.blog , ...state]
+        case "REMOVE":
+            return state.filter((blog,i)=>action.index!==i);
+        default :
+           return [];
+    }
+}
 
 //Blogging App using Hooks
 export default function Blog(){
@@ -6,7 +17,8 @@ export default function Blog(){
     // const [title , setTitle] = useState("");
     // const [content , setContent] = useState("");
     const [formData , setFormData] = useState({title : "" , content : ""});
-    const [blogs , setBlogs] = useState([]);
+    // const [blogs , setBlogs] = useState([]);
+    const [blogs , dispatch] = useReducer(blogReducer , []);
     const titleRef = useRef(null);
 
     // To focus on title field on componentDidMount...ie ... at the first render
@@ -14,12 +26,25 @@ export default function Blog(){
         titleRef.current.focus();
     },[])
 
+    // To set the title of webpage according to First Blog Title
+    useEffect(()=>{
+        if(blogs.length && blogs[0].title){
+            document.title = blogs[0].title;
+        }
+        else{
+            document.title = "No Blogs!"
+        }
+    },[blogs])
+
     //Passing the synthetic event as argument to stop refreshing the page on submit
     function handleSubmit(e){
         e.preventDefault();
         console.log(blogs);
         // setBlogs({title , content});   // Previous items will be lost
-        setBlogs([{title : formData.title , content : formData.content},...blogs]);  // Using REST operator to get previous items as it is.
+        // setBlogs([{title : formData.title , content : formData.content},...blogs]);  // Using REST operator to get previous items as it is.
+       
+        dispatch({type : "ADD" , blog : {title : formData.title , content : formData.content}});
+
         // setTitle("");
         // setContent("");
         setFormData({title:"",content:""})
@@ -28,8 +53,11 @@ export default function Blog(){
 
     function removeBlog(index){
         // setBlogs(blogs.filter((blog,i)=>index!==i));
-        blogs.splice(index , 1);
-        setBlogs([...blogs]);
+
+        // blogs.splice(index , 1);
+        // setBlogs([...blogs]);
+
+        dispatch({type : "REMOVE" , index : index});
     }
 
     return(
@@ -58,6 +86,7 @@ export default function Blog(){
                         <textarea className="input content"
                                 placeholder="Content of the Blog goes here.."
                                 value={formData.content}
+                                required
                                 onChange={(e)=> setFormData({title : formData.title , content : e.target.value})}
                         />
                 </Row >
