@@ -1,11 +1,19 @@
 import { useState , useRef, useEffect, useReducer} from "react";
+import { db } from "../firebaseInit";
+import { collection, addDoc } from "firebase/firestore"; 
+import { getDocs } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
+import { deleteDoc } from "firebase/firestore";
+
 
 function blogReducer(state , action){
     switch(action.type){
         case "ADD" :
             return [action.blog , ...state]
-        case "REMOVE":
-            return state.filter((blog,i)=>action.index!==i);
+        // case "REMOVE":
+        //     return state.filter((blog,i)=>action.index!==i);
+        case "FETCH":
+            return action.blogs;
         default :
            return [];
     }
@@ -36,8 +44,33 @@ export default function Blog(){
         }
     },[blogs])
 
+    // To get all the blogs from database...at initial render
+    useEffect(()=>{
+        // async function fetchData(){
+        //     const querySnapshot = await getDocs(collection(db, "blogs"));
+        //     const fetchedBlogs = querySnapshot.docs.map(doc => ({
+        //         id: doc.id,
+        //         ...doc.data()
+        //     }));
+        //     // Dispatch an action to update the state with fetched blogs
+        //     dispatch({ type: "FETCH", blogs: fetchedBlogs });
+            
+        // }
+        // fetchData();
+
+        const unsub = onSnapshot(collection(db, "blogs"), (querySnapshot) => {
+                const fetchedBlogs = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            // Dispatch an action to update the state with fetched blogs
+            dispatch({ type: "FETCH", blogs: fetchedBlogs });
+            // console.log("Current data: ", doc.data());
+        });
+    },[])
+
     //Passing the synthetic event as argument to stop refreshing the page on submit
-    function handleSubmit(e){
+    async function handleSubmit(e){
         e.preventDefault();
         console.log(blogs);
         // setBlogs({title , content});   // Previous items will be lost
@@ -45,20 +78,31 @@ export default function Blog(){
        
         dispatch({type : "ADD" , blog : {title : formData.title , content : formData.content}});
 
+        
+        // Add a new document with a generated id.
+        const docRef = await addDoc(collection(db, "blogs"), {
+            title: formData.title,
+            content: formData.content,
+            createdOn: new Date()
+        });
+        console.log("Document written with ID: ", docRef.id);
+
         // setTitle("");
         // setContent("");
         setFormData({title:"",content:""})
         titleRef.current.focus(); // To set the focus to title field on submitting the blog.
     }
 
-    function removeBlog(index){
+    async function removeBlog(id){
         // setBlogs(blogs.filter((blog,i)=>index!==i));
 
         // blogs.splice(index , 1);
         // setBlogs([...blogs]);
-
-        dispatch({type : "REMOVE" , index : index});
+        const docRef = doc(db , "blogs" ,id)
+        await deleteDoc(docRef);
+        // dispatch({type : "REMOVE" , index : index});
     }
+    // const querySnapshot = await getDocs(collection(db, "blogs"));
 
     return(
         <>
@@ -106,7 +150,7 @@ export default function Blog(){
                 <h3>{blog.title}</h3>
                 <p>{blog.content}</p>
                 <div className="blog-btn">
-                    <button onClick={()=>removeBlog(i)} className="btn remove">
+                    <button onClick={()=>removeBlog(blog.id)} className="btn remove">
                         Delete
                     </button>
                 </div>
